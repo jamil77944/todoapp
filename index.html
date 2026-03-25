@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>My App</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    body { margin: 0; font-family: ui-sans-serif, system-ui, -apple-system, sans-serif; }
+    * { box-sizing: border-box; }
+  </style>
+  <script>
+    function showPage(pageId) {
+      document.querySelectorAll('[data-page]').forEach(function(el) { el.style.display = 'none'; });
+      var t = document.getElementById(pageId) || document.querySelector('[data-page="'+pageId+'"]');
+      if (t) t.style.display = '';
+    }
+  </script>
+</head>
+<body>
+<style>
+  .todo-scroll::-webkit-scrollbar{width:8px}
+  .todo-scroll::-webkit-scrollbar-thumb{background:#d1d5db;border-radius:999px}
+  .todo-scroll::-webkit-scrollbar-track{background:transparent}
+</style>
+
+<div class="min-h-screen bg-gray-100 flex items-center justify-center p-4">
+  <div class="w-full max-w-2xl bg-white rounded-2xl shadow-xl overflow-hidden">
+    <div class="bg-[#DC0000] text-white p-6">
+      <h1 class="text-3xl font-bold">Todo App</h1>
+      <p class="text-red-100 mt-1">Add, complete, and delete your tasks.</p>
+    </div>
+
+    <div class="p-6">
+      <form id="todoForm" class="flex flex-col sm:flex-row gap-3" onsubmit="addTodo(event)">
+        <input
+          id="todoInput"
+          type="text"
+          placeholder="Enter a new task..."
+          class="flex-1 border border-gray-300 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-[#DC0000]"
+          maxlength="120"
+        />
+        <button
+          type="submit"
+          class="bg-[#DC0000] hover:bg-red-700 text-white font-semibold px-5 py-3 rounded-xl transition"
+        >
+          Add Task
+        </button>
+      </form>
+      <p id="formError" class="text-red-600 text-sm mt-2 hidden"></p>
+
+      <div class="mt-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+        <div class="flex gap-2 text-sm">
+          <span class="bg-gray-100 px-3 py-2 rounded-lg">Total: <strong id="totalCount">0</strong></span>
+          <span class="bg-green-100 text-green-700 px-3 py-2 rounded-lg">Completed: <strong id="completedCount">0</strong></span>
+          <span class="bg-yellow-100 text-yellow-700 px-3 py-2 rounded-lg">Remaining: <strong id="remainingCount">0</strong></span>
+        </div>
+        <button
+          type="button"
+          onclick="clearCompleted()"
+          class="border border-gray-300 hover:bg-gray-50 px-4 py-2 rounded-lg text-sm font-medium"
+        >
+          Clear Completed
+        </button>
+      </div>
+
+      <div class="mt-6 border border-gray-200 rounded-2xl overflow-hidden">
+        <div id="emptyState" class="p-8 text-center text-gray-500">
+          No tasks yet. Add your first todo above.
+        </div>
+        <ul id="todoList" class="divide-y divide-gray-200 max-h-[420px] overflow-y-auto todo-scroll"></ul>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  const STORAGE_KEY = 'todo_app_items_v1';
+  let todos = [];
+
+  function loadTodos() {
+    try {
+      const saved = localStorage.getItem(STORAGE_KEY);
+      todos = saved ? JSON.parse(saved) : [
+        { id: Date.now(), text: 'Sample task: click complete to finish me', completed: false }
+      ];
+      if (!Array.isArray(todos)) todos = [];
+    } catch (e) {
+      todos = [];
+    }
+    saveTodos();
+    renderTodos();
+  }
+
+  function saveTodos() {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(todos));
+  }
+
+  function addTodo(event) {
+    event.preventDefault();
+    const input = document.getElementById('todoInput');
+    const error = document.getElementById('formError');
+    const text = input.value.trim();
+
+    if (!text) {
+      error.textContent = 'Please enter a task before adding.';
+      error.classList.remove('hidden');
+      input.focus();
+      return;
+    }
+
+    error.classList.add('hidden');
+    todos.unshift({
+      id: Date.now() + Math.floor(Math.random() * 1000),
+      text,
+      completed: false
+    });
+
+    input.value = '';
+    saveTodos();
+    renderTodos();
+    input.focus();
+  }
+
+  function toggleTodo(id) {
+    todos = todos.map(todo =>
+      todo.id === id ? { ...todo, completed: !todo.completed } : todo
+    );
+    saveTodos();
+    renderTodos();
+  }
+
+  function deleteTodo(id) {
+    todos = todos.filter(todo => todo.id !== id);
+    saveTodos();
+    renderTodos();
+  }
+
+  function clearCompleted() {
+    todos = todos.filter(todo => !todo.completed);
+    saveTodos();
+    renderTodos();
+  }
+
+  function updateCounts() {
+    const total = todos.length;
+    const completed = todos.filter(t => t.completed).length;
+    const remaining = total - completed;
+
+    document.getElementById('totalCount').textContent = total;
+    document.getElementById('completedCount').textContent = completed;
+    document.getElementById('remainingCount').textContent = remaining;
+  }
+
+  function renderTodos() {
+    const list = document.getElementById('todoList');
+    const emptyState = document.getElementById('emptyState');
+    list.innerHTML = '';
+
+    if (todos.length === 0) {
+      emptyState.style.display = 'block';
+    } else {
+      emptyState.style.display = 'none';
+    }
+
+    todos.forEach(todo => {
+      const li = document.createElement('li');
+      li.className = 'p-4 flex items-center gap-3';
+
+      li.innerHTML = `
+        <button
+          type="button"
+          onclick="toggleTodo(${todo.id})"
+          class="w-6 h-6 rounded-full border-2 flex items-center justify-center transition ${todo.completed ? 'bg-[#DC0000] border-[#DC0000] text-white' : 'border-gray-400 hover:border-[#DC0000]'}"
+          aria-label="Toggle complete"
+          title="Mark as ${todo.completed ? 'incomplete' : 'complete'}"
+        >
+          ${todo.completed ? '✓' : ''}
+        </button>
+
+        <div class="flex-1 min-w-0">
+          <p class="break-words ${todo.completed ? 'line-through text-gray-400' : 'text-gray-800'}">${escapeHtml(todo.text)}</p>
+        </div>
+
+        <button
+          type="button"
+          onclick="deleteTodo(${todo.id})"
+          class="text-red-600 hover:text-white hover:bg-red-600 border border-red-200 px-3 py-2 rounded-lg text-sm font-medium transition"
+          aria-label="Delete task"
+          title="Delete"
+        >
+          Delete
+        </button>
+      `;
+
+      list.appendChild(li);
+    });
+
+    updateCounts();
+  }
+
+  function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+  }
+
+  loadTodos();
+</script>
+</body>
+</html>
